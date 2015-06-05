@@ -36,6 +36,7 @@ class DateCulc
 class Human
   constructor: (firstname, lastname, sex, birthday) ->
     @dateCulc = new DateCulc()
+    @marryValid = new MarryValidator()
     @name = new FullName(firstname, lastname)
     @sex = sex
     @birthday = birthday
@@ -43,15 +44,22 @@ class Human
   fullname: () ->
     @name.present()
 
-  marry: (human) ->
-    human.sex != @sex
+  marry: (human, today) ->
+    @marryValid.valid(@, human, today)
+
+  canMarry: (today) ->
+    if @sex
+      @age(today) > 17
+    else
+      @age(today) > 15
 
   age: (date) ->
     @dateCulc.diffYear(@birthday, date)
 
 
-
-
+class MarryValidator
+  valid: (left, right, today) =>
+    left.canMarry(today) and right.canMarry(today) and left.sex != right.sex
 
 describe "HumanSpec", () ->
   describe "fullname", () ->
@@ -60,8 +68,23 @@ describe "HumanSpec", () ->
       actual = target.fullname()
       assert(actual == 'first last')
 
-  describe "sex", () ->
-    it "should return true", () ->
+  describe "canMarry", ->
+    date = "2015-11-04"
+    it 'if female, age is over 16 should return true', ->
+      female = new Human('female', 'man1Last', false, '1092-01-01')
+      assert.equal female.canMarry(date), true
+    it 'if female, age is less than 16 should return false', ->
+      female = new Human('female', 'man1Last', false, '2012-01-01')
+      assert.equal female.canMarry(date), false
+    it 'if male, age is less than 16 should return false', ->
+      male = new Human('male', 'man1Last', true, '2012-01-01')
+      assert.equal male.canMarry(date), false
+    it 'if male, age is less than 16 should return true', ->
+      male = new Human('male', 'man1Last', true, '1991-01-01')
+      assert.equal male.canMarry(date), true
+
+  describe "sex", ->
+    it "should return true", ->
       target = new Human('first', 'last', true)
       sex = target.sex
       assert(sex == true)
@@ -71,22 +94,37 @@ describe "HumanSpec", () ->
       sex = target.sex
       assert(sex == true)
 
-
     it "if given false in constructor then should return true", () ->
       target = new Human('first', 'last', false)
       sex = target.sex
       assert(sex == false)
 
   describe 'marry', () ->
-    male = new Human('man1First', 'man1Last', true)
-    male2 = new Human('man2First', 'man2Last', true)
-    female = new Human('female1First', 'female1Last', false)
+    date = '2015-11-04'
+    it 'if given female and male then should return true', ->
+      male = new Human('man1First', 'man1Last', true, '1991-11-04')
+      female = new Human('female1First', 'female1Last', false, '1991-11-04')
+      assert.equal male.marry(female, date), true
 
-    it 'if given female and male then should return true', () ->
-      assert male.marry(female)
+    it 'if given same sex then should return false', ->
+      male = new Human('man1First', 'man1Last', true, '1991-11-04')
+      male2 = new Human('man2First', 'man2Last', true, '1991-11-04')
+      assert.equal male.marry(male2, date), false
 
-    it 'if given same sex then should return false', () ->
-      assert !male.marry(male2)
+    context 'age validation', () ->
+      maleNG = new Human('man1First', 'man1Last', true, '2012-01-01')
+      maleOK = new Human('man2First', 'man2Last', true, '1992-01-01')
+      femaleOK = new Human('female1First', 'female1Last', false, '1991-05-01')
+      femaleNG = new Human('female1First', 'female1Last', false, '2014-05-01')
+
+      it 'if males age is less than 18 should return false', () ->
+        assert.equal maleNG.marry(femaleOK, date), false
+      it 'if males age is greater than 18 should return true', () ->
+        assert.equal maleOK.marry(femaleOK, date), true
+      it 'if females age is less than 16 should return false', () ->
+        assert.equal femaleNG.marry(maleOK, date), false
+      it 'if females age is greater than 16 should return true', () ->
+        assert.equal femaleOK.marry(maleOK, date), true
 
 
   describe 'birthday', () ->
@@ -101,7 +139,7 @@ describe "HumanSpec", () ->
     today = '2015-11-05'
     target = new Human('female1First', 'female1Last', false, birthday)
     it 'if given date then should return age', () ->
-      assert target.age(today) == 24
+      assert.equal target.age(today), 24
 
 
 describe "DateSpec", () ->
